@@ -22,39 +22,10 @@ A logical, in simplest terms, is simply a name-value pair.
 logicals exist in tables. Tables are named. a table can contain other tables. tables can be organized in search lists, which controls the order and which
 tables are searched to provide a value for a named logical.
 
-+-------------+
-| search List |
-+-------------+
-      |
-      |             +--------+
-      +------------>| table 1|
-      |             +--------+
-      |                 |
-      |                 +----> logical, value 
-      |                 +----> logical, value
-      |                 .
-      |                 .
-      |                 +----> logical, value
-      |
-      |             +--------+
-      +------------>| table 2|
-      |             +--------+
-      |                 |
-      |                 +----> logical, value
-      |                 +----> logical, value
-      |                 .
-      |                 .
-      |                 +----> logical, value
-      |             +--------+
-      +------------>| table 3|
-                    +--------+
-                       |
-                       +----> logical, value
-                       +----> logical, value
-                       .
-                       .
-                       +----> logical, value
-
+searchlist [table1, table2, table3]
+table1 {logical:value, logical2:value,...logicaln:value}
+table2 {logical:value, logical2:value,...logicaln:value}
+table3 {logical:value, logical2:value,...logicaln:value}
 
 in the example above, the search list contains three logical tables, table 1, table 2, and table 3. The order they appear in the search list is
 the order that they will be searched for the named logical. The first match is returned.
