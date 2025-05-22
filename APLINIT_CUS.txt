@@ -1,0 +1,101 @@
+$!-----------------------------------------------
+$!	CUSTOMER SUBSYSTEM LOGICALS
+$!-----------------------------------------------
+$
+$! ----------------------------
+$! DEFINE OUR ENV VARIABLE
+$! ----------------------------
+$ CUR_ENV := "MDS"
+$ IF "''P1'".NES.""
+$ THEN
+$	ENV := 'P1'
+$ ENDIF
+$! ----------------------------
+$
+$!16042
+$! Allow CRMMAN delete command to physically remove the record (Y/N/blank meansN)?                           (1/6)
+$ DEFINE/TABLE=DEV_00423$APLLOG     MDS$CUS_ALLOW_DELETE     " "
+$!
+$!CCHMST BUDGET TYPES (Sales/Gross profit)			(3/6)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_BDG_TYP		"SGS"
+$
+$!CREATE AAC FOR EACH NEW CTM 				(1/6)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_CAC	"N"
+$
+$!Default Keyword to be used by CCHMAN at program startup	(20/6)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_CCH_KWD	"                    "
+$
+$!CDUMAN Detached Process Name				(10/6)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_CDU	"CDUMAN"
+$
+$!Store CHM by ARM or 'C'-CTM		   	   	(1/6)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_CHM	"C"
+$
+$! USE AE'M' OR AE'I' TO CALC THE CHMPAY AMT (DEFAULT IS AE'I')	(1/6)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_CHM_PAY	"I"
+$
+$! ADDED FROM EUROPEAN CODE
+$!Consolidate Order Exclusion Dictionary		(6/20)
+$! DEFINE/TABLE=DEV_00423$APLLOG	MDSCUS_CXD	"                    "
+$
+$!Default Keyword to be used by CSHMAN at program startup	(20/6)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_CSH_KWD	"                    "
+$
+$!Define variables which are to be loaded in the CTMMST	(50/6)
+$!Maintenance load routine SHR$CUS_CTMMNT
+$!
+$!	01	CTMSOD
+$!	02	CTMSNM
+$!	03	CTMSN2
+$!	04	CTMFDS
+$!	05	CTMTND[1]
+$!	06	CTMRCN[1]
+$!	07	CTMCCN[1]
+$!	08	CTMCRN[1]
+$!	09	CTMDCN[1]
+$!	10	CTMTND[2]
+$!	11	CTMRCN[2]
+$!	12	CTMCCN[2]
+$!	13	CTMCRN[2]
+$!	14	CTMDCN[2]
+$!	15	CTMTND[3]
+$!	16	CTMRCN[3]
+$!	17	CTMCCN[3]
+$!	18	CTMCRN[3]
+$!	19	CTMDCN[3]
+$!	20	CTMCMD
+$!	21	CTMSRD
+$!	22	CTMBNM
+$!	23	CTMLCD
+$!	24	CTMANM
+$!	25-50 available
+$!
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_CTM_MNT	"NYYNNYYYYNYYYYNYYYYNNNNYNNNNNNNNNNNNNNNNNNNNNNNNNN"
+$
+$! ISSUE 16013
+$! UKW Template to Use to Create CFD records for Foreign Customers
+$ DEFINE/TABLE=DEV_00423$APLLOG     MDS$CUS_FKWD    "FOREIGN"
+$
+$! ISSUE 16013
+$! Distribution List for UKW Foreign Customer Template Setup Errors
+$ DEFINE/TABLE=DEV_00423$APLLOG     MDS$CUS_FKWD_ERROR "@DIS:UKW_SETUP_ERROR.DIS"
+$
+$!USE SPECIAL RDB EM PROCESSING FOR CUSTOMER NAME LOOKUP.
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_LOK	"N"
+$
+$!CUSTOMER PRODUCTION NOTES Edit command to use
+$ DEFINE/TABLE=DEV_00423$APLLOG     MDS$CTM_PROD_EDIT     "EDIT/TPU/SECTION=CMD:KIT_TPU.TPUSECTION"
+$!
+$!# of Sleep Seconds for CDU Detached Process		(4/0)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_SCDU	"0005"
+$
+$!Start Date for SCH Command Display - YYYYMMDD		(8/4)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_SCH_DATE	"19950202"
+$
+$!AUDIT THE CHANGING OF THE SALES NUMVER IN CTM, WRITING TO THE UCC FILE. 10924
+$!live
+$ DEFINE/TABLE=DEV_00423$APLLOG     MDS$CUS_UCC     "1"
+$!
+$!User Exit Number For Overiding Total Levels in CCATST	(5/0)
+$ DEFINE/TABLE=DEV_00423$APLLOG	MDS$CUS_XCCA	"00001"
+$
