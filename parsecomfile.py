@@ -7,10 +7,13 @@
 
 import socket
 import sys
+import os
 
 fileHandle = None
-envName = ""
+envName   = ""
 connected = False
+splitChar = 0x01
+PID       = ""
 
 thisSocket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
@@ -57,8 +60,7 @@ def parseLine(line2Parse):
 		line2Parse = line2Parse[1:]
 
 	# remove any leading whitespace
-	while line2Parse[0:1] == ' ':
-		line2Parse = line2Parse[1:]
+	line2Parse = line2Parse.lstrip()
 
 	# if this line is a comment, skip it
 	if line2Parse[0:1] == "!":
@@ -73,56 +75,48 @@ def parseLine(line2Parse):
 
 		idx += 1			#move past '='
 
+		# ------------------------------------------
+		# parse out the table name
+		# ------------------------------------------
+
 		tableName = ""
-		tmp = line2Parse[idx:]
+		tmp = line2Parse[idx:].lstrip("\t ")
 		for char in tmp:
-			if char >= "A" and char <= "z":
+			if char != " " and char != "\t":
 				tableName += char
 			else:
-				if char >= "0" and char <= "9":
-					tableName += char
-				else:
-					if char == "$" or char == "_":
-						tableName += char
-					else:
-						break;
+				break;
 
-		idx += len(tableName)
+		idx = line2Parse.find(tableName) + len(tableName)
 
-		tmp = line2Parse[idx:]
-		for char in tmp:
-			if char < "A" or char > "z":
-				if char != "_":
-					idx += 1
-				else:
-					break
-			else:
-				break
 
+		# ------------------------------------------
+		# parse out the logical name
+		# ------------------------------------------
 		logicalName = ""
-		tmp = line2Parse[idx:]
+		tmp = line2Parse[idx:].lstrip("\t ")
 		for char in tmp:
-			if char >= "A" and char <= "z":
+			if char != " " and char != "\t":
 				logicalName += char
 			else:
-				if char >= "0" and char <= "9":
-					logicalName += char
-				else:
-					if char == "$" or char == "_":
-						logicalName += char
-					else:
-						break;
+				break;
 
-		idx += len(logicalName)
+		# ------------------------------------------
+		# parse out the logical value
+		# ------------------------------------------
 
-		tmp = line2Parse[idx:]
-		for char in tmp:
-			if char < "A" or char > "z":
-				if char != "_" and char != "'" and char != '"':
-					idx += 1
-# do we need to parse out quotes? or do we keep them?
+		idx = line2Parse.find(logicalName) + len(logicalName)
 
-		logicalValue = line2Parse[idx:-1]
+		tmp = line2Parse[idx:].lstrip()
+		tmp = tmp.rstrip("\n ")
+
+		if tmp[0:1] == "'" or tmp[0:1] =='"':
+			tmp = tmp[1:]
+
+		if tmp[-1:] == "'" or tmp[-1:] == '"':
+			tmp = tmp[:-1]
+
+		logicalValue = tmp
 
 		retVal.append(tableName)
 		retVal.append(logicalName)
@@ -146,7 +140,9 @@ def setLogical(logicalList):
 	if logicalList[2] == None:
 		logicalList[2] = ' '
 
-	message = "SET," + logicalList[0] + "," + logicalList[1] + "," + logicalList[2]
+	message = "SET," + logicalList[0] + "," + logicalList[1] + "," + logicalList[2]+chr(splitChar)
+
+	print("message: " + message)
 
 	try:
 
@@ -161,6 +157,9 @@ def setLogical(logicalList):
 
 	return
 
+# ------------------------------------------------------------
+# send the close connection message
+# ------------------------------------------------------------
 def closeMessage():
 
 	try:
@@ -195,10 +194,12 @@ def connect2Server(serverName):
 
 def main():
 
+	globals()['PID'] = f"{os.getpid():06d}"
+
 	thisFile = openFile('./APLINIT_CUS.txt')
 	print("file Opened")
 
-	connect2Server('./logical_socket')
+#	connect2Server('./logical_socket')
 
 	readLines(thisFile)
 
