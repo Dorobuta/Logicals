@@ -17,8 +17,9 @@
 // for now, that doesn't matter.
 //
 // add pid to all calls as the last parameter
+// major consideration is how to clean up process tbales when processes exit?
 //
-// where doe env level lists fall in? before or after all the above, or after process only?
+// where does env level lists fall in? before or after all the above, or after process only?
 // we don't necessarily need 100% emulation of OpenVMS behaviors, just consistency that makes
 // some semblance of reasonable.
 // ------------------------------------------------------------------------------------------
