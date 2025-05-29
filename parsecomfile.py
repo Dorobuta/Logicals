@@ -80,9 +80,9 @@ def parseLine(line2Parse):
 		# ------------------------------------------
 
 		tableName = ""
-		tmp = line2Parse[idx:].lstrip("\t ")
+		tmp = line2Parse[idx:].lstrip("\t ")		# strip leading spaces and tabs
 		for char in tmp:
-			if char != " " and char != "\t":
+			if char != " " and char != "\t":		# a tab or space means end of table name
 				tableName += char
 			else:
 				break;
@@ -94,9 +94,9 @@ def parseLine(line2Parse):
 		# parse out the logical name
 		# ------------------------------------------
 		logicalName = ""
-		tmp = line2Parse[idx:].lstrip("\t ")
+		tmp = line2Parse[idx:].lstrip("\t ")		# strip leading spaces and tabs
 		for char in tmp:
-			if char != " " and char != "\t":
+			if char != " " and char != "\t":		# a space or tab means end of logical name
 				logicalName += char
 			else:
 				break;
@@ -107,10 +107,10 @@ def parseLine(line2Parse):
 
 		idx = line2Parse.find(logicalName) + len(logicalName)
 
-		tmp = line2Parse[idx:].lstrip()
-		tmp = tmp.rstrip("\n ")
+		tmp = line2Parse[idx:].lstrip()			# strip leading spaces and tabs
+		tmp = tmp.rstrip("\n ")				# strip trailing new line char
 
-		if tmp[0:1] == "'" or tmp[0:1] =='"':
+		if tmp[0:1] == "'" or tmp[0:1] =='"':		# closing quote or end of line is end of value
 			tmp = tmp[1:]
 
 		if tmp[-1:] == "'" or tmp[-1:] == '"':
@@ -118,6 +118,10 @@ def parseLine(line2Parse):
 
 		logicalValue = tmp
 
+		# ------------------------------------------
+		# assemble the list to return
+		# ------------------------------------------
+		retVal.clear()
 		retVal.append(tableName)
 		retVal.append(logicalName)
 		retVal.append(logicalValue)
@@ -199,7 +203,7 @@ def main():
 	thisFile = openFile('./APLINIT_CUS.txt')
 	print("file Opened")
 
-#	connect2Server('./logical_socket')
+	connect2Server('./logical_socket')
 
 	readLines(thisFile)
 
