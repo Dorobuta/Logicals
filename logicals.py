@@ -28,7 +28,7 @@
 # domain socket, so it could be protected.
 #
 # I envision one server per node, but it could be made to use the internet socket protocol, but that introduces a bunch
-# of complexities, not insurmountable, but more stuff to worry about.
+# of complexities, not insurmountable, but more stuff to worry about. (requires multi-threading)
 #
 # so why do it this way?
 #
@@ -60,8 +60,9 @@
 # global variables
 # --------------------------------------------------------------------------------
 
-LOGICAL_TABLES ={}
-SEARCH_ORDER  = []
+LOGICAL_TABLES = {}	# holder of all tables
+NAMED_SEARCHES = {}	# holder of search lists organized by named key values
+SEARCH_ORDER   = []	# a generic search order (should be the default)
 
 # --------------------------------------------------------------------------------
 # add a logical to a table (table is created if it doesn't exist  - is this ok?)
@@ -88,6 +89,19 @@ def getLogicals(table):
 		return LOGICAL_TABLES[table]
 
 # --------------------------------------------------------------------------------
+# get all the tables in a searchList
+# --------------------------------------------------------------------------------
+def getSearchTables(listName):
+
+	if listName == None or ListName == '':
+		return SEARCH_ORDER
+
+	thisList = NAMED_SEARCHES[listName]
+
+	return thisList		# can be null
+
+
+# --------------------------------------------------------------------------------
 # get the value of a specific logical, first hit in search list
 # --------------------------------------------------------------------------------
 def getLogicalValue(logical):
@@ -101,6 +115,31 @@ def getLogicalValue(logical):
 			if thisTable.get(logical) != None:
 				return thisTable[logical]
 	return None
+
+# --------------------------------------------------------------------------------
+# get the value of a specific logical, first hit in named search list
+# --------------------------------------------------------------------------------
+def getLogicalValueNamedSearch(logical, search):
+
+	thisList = NAMED_SEARCHES[search]
+	if thisList != None:
+		for table in thisList:
+			if LOGICAL_TABLES.get(table) != None:
+				thisTable = LOGICAL_TABLES[table]
+
+				if thisTable.get(logical) != None:
+					return thisTable[logical]
+
+	else:
+		for table in SEARCH_ORDER:
+			if LOGICAL_TABLES.get(table) != None:
+				thisTable = LOGICAL_TABLES[table]
+
+				if thisTable.get(logical) != None:
+					return thisTable[logical]
+	return None
+
+
 # --------------------------------------------------------------------------------
 # get the value of a specific logical, from a specific table
 # --------------------------------------------------------------------------------
@@ -137,6 +176,16 @@ def setSearchOrder(list):
 
 	for table in list:
 		SEARCH_ORDER.append(table)
+
+# --------------------------------------------------------------------------------
+# CREATE A NAMED SEARCH
+# --------------------------------------------------------------------------------
+def setNamedSearchOrder(name, list):
+
+	if NAMED_SEARCHES[name] != None:
+		del NAMED_SEARCHES[name]
+
+	NAMED_SEARCHES[name] = list
 
 # --------------------------------------------------------------------------------
 # delete a entire logical table
