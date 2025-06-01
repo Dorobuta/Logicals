@@ -59,7 +59,7 @@ def getRequests():
 			request = connection.recv(1024)
 			request = request.decode("utf-8")
 
-# we need to consider the case where we get a partial request in the buffere. this will be
+# we need to consider the case where we get a partial request in the buffer. this will be
 # indicated by a string not terminated with a splitChar
 #
 # I beleive we need to do another recv to get the rest of the string. we may have to
@@ -80,6 +80,7 @@ def processRequest(thisRequest):
 	argList.clear()
 
 	tableName      = ""
+	searchName     = ""
 	logicalName    = ""
 	logicalValue   = ""
 
@@ -130,17 +131,36 @@ def processRequest(thisRequest):
 
 			logicalName = argList[1]
 
-			if len(argList) == 2:
-				logicalValue = logicals.getLogicalValue(logicalName)
-			else:
-				tableName = argList[2]
-				logicalValue = logicals.getLogicalTable(tableName, logicalName)
+			match len(argList):
+				case 2:
+					logicalValue = logicals.getLogicalValue(logicalName)
+				case 3:
+					tableName = argList[2]
+					logicalValue = logicals.getLogicalTable(tableName, logicalName)
+
 
 			if logicalValue != None:
 				globals()['connection'].send(logicalValue.encode("utf-8"))
 			else:
 				globals()['connection'].send("###@@@!!!".encode("utf-8"))
 
+
+		# ---------------------------------------------
+		# get the value of a logical using named list
+		# ---------------------------------------------
+		case "GTN":
+
+			print("get requested")
+
+			logicalName = argList[1]
+			SearchName   = argList[2]
+
+			logicalValue = logicals.getLogicalValueNamedSearch(tableName, searchName)
+
+			if logicalValue != None:
+				globals()['connection'].send(logicalValue.encode("utf-8"))
+			else:
+				globals()['connection'].send("###@@@!!!".encode("utf-8"))
 
 		# ---------------------------------------------
 		# change a logical value
@@ -153,22 +173,24 @@ def processRequest(thisRequest):
 		# ---------------------------------------------
 		case "SEA":
 			tmpList.clear()
-			count = 0
 
-			for item in argList:
-				count = count+1
-				if count > 1:
-					tmpList.append(item)
+			for item in argList[1:]:
+				tmpList.append(item)
 
-				logicals.setSearchOrder(tmpList)
+			logicals.setSearchOrder(tmpList)
 
-		# consider having several types of search lists:
-		# one per environment for all the env tables and values
-		# one per PID <- how to clean up on process exit?
-		# pid is a requirement for process defined logicals
-		# first entry in list should be LNM$PROCESS_<pidvalue>
-		#
-		# last entry should always be LNM$SYSTEM
+		# ---------------------------------------------
+		# create a named search list
+		# ---------------------------------------------
+		case "SLN":
+			tmpList.clear()
+
+			searchName = argList[1]
+
+			for item in argList[2:]:
+				tmpList.append(item)
+
+			logicals.setNamedSearchOrder(searchname, tmpList)
 
 		# ---------------------------------------------
 		# shutdown and exit
