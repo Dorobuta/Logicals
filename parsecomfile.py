@@ -12,10 +12,11 @@ import os
 fileHandle = None
 envName   = ""
 connected = False
-splitChar = 0x01
 PID       = ""
+HOST      = "localhost"
+PORT      = 5050
 
-thisSocket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+thisSocket = None
 
 # ------------------------------------------------------------
 # open the file
@@ -41,7 +42,9 @@ def readLines(fileHandle):
 		print("Processing: " + line[0:10])
 		logicalValues = parseLine(line)
 		if logicalValues != None:
+			connect2Server(HOST, PORT)
 			setLogical(logicalValues)
+			globals()['thisSocket'].close()
 
 	fileHandle.close()
 
@@ -144,14 +147,14 @@ def setLogical(logicalList):
 	if logicalList[2] == None:
 		logicalList[2] = ' '
 
-	message = "SET," + logicalList[0] + "," + logicalList[1] + "," + logicalList[2]+chr(splitChar)
+	message = "SET," + logicalList[0] + "," + logicalList[1] + "," + logicalList[2]
 
 	print("message: " + message)
 
 	try:
 
 		# Send data
-		thisSocket.send(message.encode("utf-8"))
+		globals()['thisSocket'].send(message.encode("utf-8"))
 
 	except socket.error as msg:
     		print(msg)
@@ -169,7 +172,7 @@ def closeMessage():
 	try:
 
 		# Send data
-		thisSocket.send("CLOSE".encode("utf-8"))
+		tglobals()['thisSocket'].send("CLOSE".encode("utf-8"))
 
 	except socket.error as msg:
     		print(msg)
@@ -180,13 +183,12 @@ def closeMessage():
 # get a uds socket to the logical server
 # ------------------------------------------------------------
 
-def connect2Server(serverName):
+def connect2Server(serverName, portNumber):
 
-	print("in connect2Server")
-	print("Server name is: " + serverName)
+	globals()['thisSocket'] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 	try:
-		thisSocket.connect(serverName)
+		globals()['thisSocket'].connect((serverName, portNumber))
 
 	except socket.error as msg:
     		print(msg)
@@ -203,13 +205,13 @@ def main():
 	thisFile = openFile('./APLINIT_CUS.txt')
 	print("file Opened")
 
-	connect2Server('./logical_socket')
+#	connect2Server(HOST, PORT)
 
 	readLines(thisFile)
 
 	thisFile.close()
-	closeMessage()		# tell server we are done.
-	thisSocket.close()
+#	closeMessage()		# tell server we are done. (deprecated)
+#	thisSocket.close()
 
 #------------------------------------------------------------------------------------------
 

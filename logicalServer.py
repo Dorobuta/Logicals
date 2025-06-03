@@ -3,86 +3,78 @@ import logicals
 import socket
 import sys
 import os
+import threading
 
 
 # --------------------------------------------------------------------------------
 # global variables
 # --------------------------------------------------------------------------------
-server_address = './logical_socket'
+server_address = 'localhost'
+port           = 5050		# need a better port number
 closeSocket    = False
 disconnect     = False
-argList        = []
-tmpList        = []
-tableName      = ""
-logicalName    = ""
-logicalValue   = ""
-splitChar      = 0x01
 
-connection     = None
-client_address = None
-
-# ---------------------------------------------
-# remove socket if it already exists
-# ---------------------------------------------
-
-try:
-	os.unlink(server_address)
-except OSError:
-	if os.path.exists(server_address):
-		raise
-
-# ---------------------------------------------
-# create the socket
-# ---------------------------------------------
-
-clientSocket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-clientSocket.bind(server_address)
 
 # --------------------------------------------------------------------------------
-# ok, now we get connections and process them
+# define the server section - listen for connection and spawn threads
 # --------------------------------------------------------------------------------
-def getRequests():
+
+def server():
+
+	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	server_socket.bind((server_address, port))
+	server_socket.listen()
+
+	print(f"Listening on {server_address}:{port}")
 
 	while globals()['closeSocket'] == False:
-
-		print("looking for a connection...")
-
-		globals()['disconnect'] = False
-
-		clientSocket.listen(1)
-
-		globals()['connection'], globals()['client_address'] = clientSocket.accept()
-		print('Connection from', str(connection).split(", ")[0][-4:])
-
-		while (globals()['disconnect'] == False and globals()['closeSocket'] == False):
-
-			request = connection.recv(1024)
-			request = request.decode("utf-8")
-
-# we need to consider the case where we get a partial request in the buffer. this will be
-# indicated by a string not terminated with a splitChar
-#
-# I beleive we need to do another recv to get the rest of the string. we may have to
-# do this multiple times because of multiple requests piling up.
-
-			for item in request.split(chr(splitChar)):
-				processRequest(item)
-
-				if (globals()['disconnect'] == True or globals()['closeSocket'] == True):
-					break
+		client_socket, address = server_socket.accept()
+		client_thread = threading.Thread(target=handle_client, args=(client_socket, address))
+		client_thread.start()
 
 
 # --------------------------------------------------------------------------------
-#
+# handle a connection in a thread
 # --------------------------------------------------------------------------------
-def processRequest(thisRequest):
+def handle_client(client_socket, address):
 
-	argList.clear()
+	print(f"Accepted connection from {address}")
+	while True:
+		try:
+			data = client_socket.recv(1024)
+			if not data:
+				break
+
+#			print(f"Received: {data.decode()} from {address}")
+			processRequest(data.decode("utf-8"), client_socket, address)
+
+		except ConnectionResetError:
+
+			print(f"Connection reset by {address}")
+			break
+
+	client_socket.close()
+#	print(f"Connection closed from {address}")
+
+
+
+# --------------------------------------------------------------------------------
+# do the actual work
+# --------------------------------------------------------------------------------
+def processRequest(thisRequest, client_socket, address):
 
 	tableName      = ""
 	searchName     = ""
 	logicalName    = ""
 	logicalValue   = ""
+
+	argList        = []
+	tmpList        = []
+
+	splitChar      = 0x01
+
+	argList.clear()
+
 
 	for item in thisRequest.split(","):
 		argList.append(item.strip())
@@ -140,9 +132,9 @@ def processRequest(thisRequest):
 
 
 			if logicalValue != None:
-				globals()['connection'].send(logicalValue.encode("utf-8"))
+				client_socket.send(logicalValue.encode("utf-8"))
 			else:
-				globals()['connection'].send("###@@@!!!".encode("utf-8"))
+				client_socket.send("###@@@!!!".encode("utf-8"))
 
 
 		# ---------------------------------------------
@@ -158,9 +150,9 @@ def processRequest(thisRequest):
 			logicalValue = logicals.getLogicalValueNamedSearch(tableName, searchName)
 
 			if logicalValue != None:
-				globals()['connection'].send(logicalValue.encode("utf-8"))
+				client_socket.send(logicalValue.encode("utf-8"))
 			else:
-				globals()['connection'].send("###@@@!!!".encode("utf-8"))
+				client_socket.send("###@@@!!!".encode("utf-8"))
 
 		# ---------------------------------------------
 		# change a logical value
@@ -200,12 +192,10 @@ def processRequest(thisRequest):
 			globals()['closeSocket'] = True
 
 		# ---------------------------------------------
-		# close connection
+		# close connection (deprecated)
 		# ---------------------------------------------
 		case "CLOSE":
 			print("Close connection requested...")
-			globals()['connection'].close()	# go back and listen...
-			globals()['disconnect'] = True
 
 		# ---------------------------------------------
 		# default - we have no idea...
@@ -220,7 +210,7 @@ def processRequest(thisRequest):
 # --------------------------------------------------------------------------------
 def main():
 
-	getRequests()
+	server()
 	exit()
 
 #------------------------------------------------------------------------------------------
