@@ -1,4 +1,17 @@
-
+#
+# LogicalServer.py
+#
+#	This module provides a TCP/IP socket based server to full requests for
+#	getting and defining logical values, a la OpenVMS
+#
+#	this is not meant as a 100% authentic implementation of the VMS logical
+#	structure, but a reasonable facsimile of it with behaviors that are consistent
+#	with it.
+#
+#	obviously, logicals are not utilized by the undferlying OS, so the applications
+#	need to do any file name translations, or path translations internally
+#
+#
 import logicals
 import socket
 import sys

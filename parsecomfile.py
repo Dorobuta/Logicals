@@ -1,8 +1,10 @@
 
 #------------------------------------------------------------------------------------------
-
+#
 # parse com file for logical definitions
-
+#
+#
+# added handling of split lines
 #------------------------------------------------------------------------------------------
 
 import socket
@@ -34,12 +36,40 @@ def openFile(fileName):
 
 def readLines(fileHandle):
 
+	continuedLine = False
+	tmpLine       = None
+
 	print ("in read lines")
 	logicalValues = []
 
 	lines = fileHandle.readlines()
 	for line in lines:
 		print("Processing: " + line[0:10])
+
+		line = line.lstrip()
+		line = line.rstrip("\n\t ")
+
+		#------------------------------------------
+		# handle split lines
+		#     (multiple lines per statement)
+		#------------------------------------------
+
+		if line[-1:] == '-':
+			if continuedLine == True:
+				line = tmpLine + ' ' + line[:-2]
+			else:
+				continuedLine = True
+				tmpLine = line[:-2]
+			continue
+
+		if continuedLine == True:
+			continuedLine = False
+			line =  tmpLine + ' ' + line
+
+		#------------------------------------------
+		# process the line
+		#------------------------------------------
+
 		logicalValues = parseLine(line)
 		if logicalValues != None:
 			connect2Server(HOST, PORT)
@@ -111,7 +141,7 @@ def parseLine(line2Parse):
 		idx = line2Parse.find(logicalName) + len(logicalName)
 
 		tmp = line2Parse[idx:].lstrip()			# strip leading spaces and tabs
-		tmp = tmp.rstrip("\n ")				# strip trailing new line char
+		tmp = tmp.rstrip("\n 	")			# strip trailing new line char
 
 		if tmp[0:1] == "'" or tmp[0:1] =='"':		# closing quote or end of line is end of value
 			tmp = tmp[1:]
@@ -160,8 +190,6 @@ def setLogical(logicalList):
     		print(msg)
     		sys.exit(1)
 
-
-
 	return
 
 # ------------------------------------------------------------
@@ -205,13 +233,9 @@ def main():
 	thisFile = openFile('./APLINIT_CUS.txt')
 	print("file Opened")
 
-#	connect2Server(HOST, PORT)
-
 	readLines(thisFile)
 
 	thisFile.close()
-#	closeMessage()		# tell server we are done. (deprecated)
-#	thisSocket.close()
 
 #------------------------------------------------------------------------------------------
 

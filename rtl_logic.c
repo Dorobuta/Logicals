@@ -35,6 +35,8 @@
 //                               discovered the C libraries don't like the use of "localhost"
 //                               unlike python, and require 127.0.0.1 instead
 //
+// Tim Lovern       06-JUN-2025  Minor clean up
+//
 // ------------------------------------------------------------------------------------------
 
 #include <arpa/inet.h>
@@ -73,6 +75,7 @@
 //
 // need to add the environment into the arglist - this will control which tables are searched
 // in lieu of a specific table. Might be able to use an oper and re-use the table for the env name
+// other option is to declare " extern char cur_env "
 // ------------------------------------------------------------------------------------------
 
 int rtl_logic(char *logNam, char oper, char *logVal, int *logLen, char *table, char warn)
