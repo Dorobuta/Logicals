@@ -182,7 +182,7 @@ def setSearchOrder(list):
 # --------------------------------------------------------------------------------
 def setNamedSearchOrder(name, list):
 
-	if NAMED_SEARCHES[name] != None:
+	if NAMED_SEARCHES.get(name) != None:
 		del NAMED_SEARCHES[name]
 
 	NAMED_SEARCHES[name] = list

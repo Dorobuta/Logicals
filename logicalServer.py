@@ -195,7 +195,9 @@ def processRequest(thisRequest, client_socket, address):
 			for item in argList[2:]:
 				tmpList.append(item)
 
-			logicals.setNamedSearchOrder(searchname, tmpList)
+			print(f"SLN: {searchName} = {tmpList}")
+
+			logicals.setNamedSearchOrder(searchName, tmpList)
 
 		# ---------------------------------------------
 		# shutdown and exit

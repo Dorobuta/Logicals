@@ -6,6 +6,8 @@
 #
 #------------------------------------------------------------------------------------------
 
+
+import argparse
 import socket
 import sys
 import os
@@ -16,8 +18,40 @@ connected = False
 PID       = ""
 HOST      = "localhost"
 PORT      = 5050
+parser    = None
 
 thisSocket = None
+
+# ------------------------------------------------------------
+# initialization
+# ------------------------------------------------------------
+
+def init():
+
+	passedArgs = list()
+	passedArgs.clear()
+
+	parser = argparse.ArgumentParser(prog='parseEnv', description="Parse file and create env search lists")
+
+	parser.add_argument('filename',       help = 'File to parse')
+	parser.add_argument('-p', '--port',   help = 'Port number override')
+	parser.add_argument('-s', '--server', help = 'Server (Host) override')
+
+	args = parser.parse_args()
+
+	passedArgs.append(args.filename)
+
+	if args.server != None:
+		passedArgs.append(args.server)
+	else:
+		passedArgs.append('')
+
+	if args.port != None:
+		passedArgs.append(args.port)
+	else:
+		passedArgs.append('')
+
+	return passedArgs
 
 # ------------------------------------------------------------
 # open the file
@@ -72,6 +106,7 @@ def readLines(fileHandle):
 			connect2Server(HOST, PORT)
 			setEnvironment(environmentList)
 			globals()['thisSocket'].close()
+
 
 	fileHandle.close()
 
@@ -209,10 +244,21 @@ def connect2Server(serverName, portNumber):
 
 def main():
 
+	theArgs = init()
+
+
 	globals()['PID'] = f"{os.getpid():06d}"
 
-	thisFile = openFile('./envdefine.txt')
-	print("file Opened")
+	thisFile = openFile(theArgs[0])
+	print(f"file Opened: {theArgs[0]}")
+
+	if theArgs[1] != '' and theArgs[1] != None:
+		globals()['HOST'] = theArgs[1]
+
+	if theArgs[2] != '' and theArgs[2] != None:
+		globals()['PORT'] = theArgs[2]
+
+	print(f"Host: {globals()['HOST']} Port: {globals()['PORT']}")
 
 	readLines(thisFile)
 
