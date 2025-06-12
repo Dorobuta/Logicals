@@ -53,13 +53,13 @@ Limitations of this approach:
 2. recursion. No recursion is implemented in the translation method. Right now, that logic would need to be implemented, either in the server, or the rtl_logical.c routine. 
    (it could be handled by the application, alternatively.)
 
-3. UDP vs TCP/IP sockets - UDP is connectionless and has no guaranteed delivery. It probably would be worth the effort of using TCP/IP sockets for production.
+3. (Completed - UDP was replaced) UDP vs TCP/IP sockets - UDP is connectionless and has no guaranteed delivery. It probably would be worth the effort of using TCP/IP sockets for production.
 
 4. Search lists. This is currently very under developed and needs addressing. I would think that these could be pre-defined into environments, with a process level environment logical
    indicating which search list to use. something like USER$ENV with a value of: DEV_00423, defined in table: LNM$PROCESS_000123, for the process with PID 123. This should reasult in
    the search list dev_00423$search being mapped into the LNM$PROCESS_000123 logical USER$SEARCH_LIST
 
-5. The server is currently single threaded.
+5. (Completed - server fires a thread for each request) The server is currently single threaded.
 
 
 
