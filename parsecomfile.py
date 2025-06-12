@@ -7,6 +7,7 @@
 # added handling of split lines
 #------------------------------------------------------------------------------------------
 
+import argparse
 import socket
 import sys
 import os
@@ -101,6 +102,13 @@ def parseLine(line2Parse):
 
 	if line2Parse.upper().find("DEFINE") != -1:
 		#get table name - it follows '='
+
+# this needs work - you can define logicals:
+# /group, /system, and without any table name or qualifier.
+# need to handle all cases here.
+# no '=' means no table name
+# but a '/' means we have a implied table name, like lnm$system, lnm$group, or lnm$process
+# we are not doing job.
 
 		idx = line2Parse.find("=")
 		if idx == -1:
@@ -223,19 +231,61 @@ def connect2Server(serverName, portNumber):
     		sys.exit(1)
 
 	return
+# ------------------------------------------------------------
+# initialization
+# ------------------------------------------------------------
+
+def init():
+
+	passedArgs = list()
+	passedArgs.clear()
+
+	parser = argparse.ArgumentParser(prog='parseEnv', description="Parse file and create env search lists")
+
+	parser.add_argument('filename',       help = 'File to parse')
+	parser.add_argument('-p', '--port',   help = 'Port number override')
+	parser.add_argument('-s', '--server', help = 'Server (Host) override')
+
+	args = parser.parse_args()
+
+	passedArgs.append(args.filename)
+
+	if args.server != None:
+		passedArgs.append(args.server)
+	else:
+		passedArgs.append('')
+
+	if args.port != None:
+		passedArgs.append(args.port)
+	else:
+		passedArgs.append('')
+
+	return passedArgs
+
 
 #------------------------------------------------------------------------------------------
 
 def main():
 
+	theArgs = init()
+
 	globals()['PID'] = f"{os.getpid():06d}"
 
-	thisFile = openFile('./APLINIT_CUS.txt')
-	print("file Opened")
+	thisFile = openFile(theArgs[0])
+	print(f"file Opened: {theArgs[0]}")
+
+	if theArgs[1] != '' and theArgs[1] != None:
+		globals()['HOST'] = theArgs[1]
+
+	if theArgs[2] != '' and theArgs[2] != None:
+		globals()['PORT'] = theArgs[2]
+
+	print(f"Host: {globals()['HOST']} Port: {globals()['PORT']}")
 
 	readLines(thisFile)
 
 	thisFile.close()
+
 
 #------------------------------------------------------------------------------------------
 

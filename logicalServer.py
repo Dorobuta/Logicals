@@ -1,3 +1,5 @@
+#!/usr/local/bin python3
+
 #
 # LogicalServer.py
 #
@@ -11,12 +13,80 @@
 #	obviously, logicals are not utilized by the undferlying OS, so the applications
 #	need to do any file name translations, or path translations internally
 #
+#	design notes:
+#
+#		logical tables are implemented as dictionaries.
+#		logicals are entries in a dictionary.
+#		The logical name is the key.
+#
+#		logical tables are entries in a master dictionary.
+#		the table name is the key.
+#
+#		a named search is a list of table names to be searched through.
+#		named searches are stored in a dictionary.
+#		the name of the search is the key.
+#		the list is the data.
+#
+#		a cascaded search is a list of search names.
+#		cascaded searches are stored in a dictionary.
+#		the key is the name of a named search.
+#		the list is the data
+#
+#		a named search is the equivalent of an environment. It is
+#		a collection of logical tables to be searched in a specified order
+#		to find the translation of a logical
+#
+#		a cascaded search allows you to define base sets of tables that
+#		an environment builds upon or re-defines.
+#
+#		for example:
+#			dev$branch   -> dev   -> base
+#
+#		in the above example for dev, base would hold logical values that are the
+#		default, or that are always identical across all environments.
+#		dev holds the values that have been changed specifically for the entire development space
+#		branch holds the vlaues specific to that branch
+#
+#		search lists defined for the example:
+#
+#			base   - holds all the logical tables for base
+#			dev    - holds the tables and logicals that differ from base
+#			branch - holds values specific for the branch
+#
+#		cascaded searches:
+#
+#			dev$branch:   [dev,base]
+#			dev:          [base]
+#
+#		logical lookups in dev$branch would first search all the tables
+#		defined in dev$branch, followed by the tables in dev, and finally in base.
+#		the very first match is returned
+#
+#
+# DATE        AUTHOR           MODIFICATION(S)
+# ----------- ---------------- ---------------------------------------------------
+# 08-JUN-2025 Tim Lovern       deprecated the generic search list and replaced it
+#                              with a cascade list based on entries in the named
+#                              search dictionary.
+#
+#                              added header documentation to describe the code.
+#
+# 12-JUN-2025 Tim Lovern       added tableLock and processLock to protect data
+#                              from race conditions across threads.
+#
+#                              cleaned up global references
+#
+#
+#
 #
 import logicals
 import socket
 import sys
 import os
 import threading
+import psutil
+import time
+import multiprocessing
 
 
 # --------------------------------------------------------------------------------
@@ -27,6 +97,9 @@ port           = 5050		# need a better port number
 closeSocket    = False
 disconnect     = False
 
+#processList    = list()		# used to track lnm$process_PID processes
+processLock     = threading.lock()	# lock for process level logicals
+tableLock       = threading.lock()	# lock for setting table values
 
 # --------------------------------------------------------------------------------
 # define the server section - listen for connection and spawn threads
@@ -34,13 +107,22 @@ disconnect     = False
 
 def server():
 
+	global closeSocket
+
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	server_socket.bind((server_address, port))
 	server_socket.listen()
 
+	# ---------------------------------------------
+	# start the thread that handles process
+	# level logicals (delete tables when processes die)
+	# ---------------------------------------------
+#	procThread = threading.thread(target=handleProcessDeaths)
+#	procThread.start()
+
 	print(f"Listening on {server_address}:{port}")
 
-	while globals()['closeSocket'] == False:
+	while closeSocket == False:
 		client_socket, address = server_socket.accept()
 		client_thread = threading.Thread(target=handle_client, args=(client_socket, address))
 		client_thread.start()
@@ -88,7 +170,6 @@ def processRequest(thisRequest, client_socket, address):
 
 	argList.clear()
 
-
 	for item in thisRequest.split(","):
 		argList.append(item.strip())
 
@@ -99,50 +180,44 @@ def processRequest(thisRequest, client_socket, address):
 
 		# ---------------------------------------------
 		# set a logical / create a table
+		# [CMD, TABLE NAME, LOGICAL NAME, LOGICAL VALUE]
 		# ---------------------------------------------
 		case "SET":
-			if argList[1] != None and argList[1] !='':
-				tableName    = argList[1]
 
-			if argList[2] != None and argList[2] !='':
-				logicalName  = argList[2]
+			tableName    = argList[1]
+			logicalName  = argList[2]
+			logicalValue = argList[3]
 
-			if argList[3] != None and argList[3] !='':
-				logicalValue = argList[3]
-			else:
-				logicalValue = ''
+			with tableLock:
+				logicals.addLogical(tableName, logicalName, logicalValue)
 
-			logicals.addLogical(tableName, logicalName, logicalValue)
 			print("Table: "+ tableName + " logical: "+ logicalName + " value: " + logicalValue)
 
 		# ---------------------------------------------
-		# delete a logical / table
+		# delete a logical
+		# [CMD, TABLE NAME, LOGICAL NAME]
 		# ---------------------------------------------
 		case "DEL":
-			if argList[1] != None and argList[1] !='':
-				tableName    = argList[1]
 
-			if argList[2] != None and argList[2] !='':
-				logicalName  = argList[2]
+			tableName    = argList[1]
+			logicalName  = argList[2]
 
-			logicals.deleteLogical(tableName, logicalName)
+			with tableLock:
+				logicals.deleteLogical(tableName, logicalName)
 
 		# ---------------------------------------------
 		# get the value of a logical
+		# [CMD, LOGICAL NAME, TABLE NAME]
 		# ---------------------------------------------
 		case "GET":
 
 			print("get requested")
 
 			logicalName = argList[1]
+			tableName = argList[2]
 
-			match len(argList):
-				case 2:
-					logicalValue = logicals.getLogicalValue(logicalName)
-				case 3:
-					tableName = argList[2]
-					logicalValue = logicals.getLogicalTable(tableName, logicalName)
-
+			with tableLock:
+				logicalValue = logicals.getLogicalTable(tableName, logicalName)
 
 			if logicalValue != None:
 				client_socket.send(logicalValue.encode("utf-8"))
@@ -152,15 +227,17 @@ def processRequest(thisRequest, client_socket, address):
 
 		# ---------------------------------------------
 		# get the value of a logical using named list
+		# [CMD, LOGICAL, SEARCH LIST NAME]
 		# ---------------------------------------------
 		case "GTN":
 
-			print("get requested")
+			print("get named search requested")
 
 			logicalName = argList[1]
-			SearchName   = argList[2]
+			searchName   = argList[2]
 
-			logicalValue = logicals.getLogicalValueNamedSearch(tableName, searchName)
+			with tableLock:
+				logicalValue = logicals.getLogicalValueNamedSearch(logicalName, searchName)
 
 			if logicalValue != None:
 				client_socket.send(logicalValue.encode("utf-8"))
@@ -174,18 +251,24 @@ def processRequest(thisRequest, client_socket, address):
 			tmp = 1	# do nothing
 
 		# ---------------------------------------------
-		# set the table search order
+		# set the cascading named search order
+		# [CMD, OWNER NAME, NAME 1,...,NAME n]
 		# ---------------------------------------------
-		case "SEA":
+		case "SCL":
 			tmpList.clear()
+			searchName = argList[1]
 
-			for item in argList[1:]:
+			for item in argList[2:]:
 				tmpList.append(item)
 
-			logicals.setSearchOrder(tmpList)
+			print(f"SCL: {searchName} = {tmpList}")
+
+			with tableLock:
+				logicals.setCascadeSearchOrder(searchName, tmpList)
 
 		# ---------------------------------------------
 		# create a named search list
+		# [CMD, SEARCH NAME, LIST 1,...,LIST n]
 		# ---------------------------------------------
 		case "SLN":
 			tmpList.clear()
@@ -197,14 +280,19 @@ def processRequest(thisRequest, client_socket, address):
 
 			print(f"SLN: {searchName} = {tmpList}")
 
-			logicals.setNamedSearchOrder(searchName, tmpList)
+			with tableLock:
+				logicals.setNamedSearchOrder(searchName, tmpList)
 
 		# ---------------------------------------------
 		# shutdown and exit
+		# [CMD]
 		# ---------------------------------------------
 		case "SHUTDOWN":
+			global closeSocket
+
 			print("shutdown requested...")
-			globals()['closeSocket'] = True
+			with tableLock:
+				closeSocket = True
 
 		# ---------------------------------------------
 		# close connection (deprecated)
@@ -219,6 +307,49 @@ def processRequest(thisRequest, client_socket, address):
 			tmp = 1
 
 	return
+
+
+# --------------------------------------------------------------------------------
+# thread for watching for processes with local logical definitions going away
+# --------------------------------------------------------------------------------
+def handleProcessDeaths(pid):
+#	global closeSocket
+#	howLong      = 60 * 5		# five minutes between pid checks
+#	expiredList  = list()
+#
+#	while closeSocket == False:
+#
+#		expiredList.clear()
+#		time.sleep(howLong)
+#
+#		if len(processList) == 0:
+#			continue
+#
+#		expiredList = checkProcessTables()
+#
+#		if len(expiredList) != 0:
+#			with processLock:
+#			for pid in expiredList:
+#				logicals.deleteLogicalTable(f'LNM$PROCESS_{pid}')
+#				if pid in processList:
+#					del processList[processList.index(pid)]
+#
+	return
+
+# --------------------------------------------------------------------------------
+# check for processes with tables to see if they still exist
+#	should be in own thread and sleep between calls.
+# --------------------------------------------------------------------------------
+def checkProcessTables()
+#	global processList
+#	deadList = list()
+#	deadList.clear()
+#
+#	with processLock:
+#		for proc in processList:
+#			if psutil.pid_exists(proc) == False:
+#				deadList.append(proc)
+#	return deadList
 
 # --------------------------------------------------------------------------------
 # main routine

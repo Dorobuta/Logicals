@@ -107,7 +107,6 @@ def readLines(fileHandle):
 			setEnvironment(environmentList)
 			globals()['thisSocket'].close()
 
-
 	fileHandle.close()
 
 # ------------------------------------------------------------
@@ -115,6 +114,8 @@ def readLines(fileHandle):
 # ------------------------------------------------------------
 
 def parseLine(line2Parse):
+
+	parseThis = False
 
 	print("in parseLine")
 
@@ -133,7 +134,19 @@ def parseLine(line2Parse):
 		return None
 
 	if line2Parse.upper().find("ENVLIST") != -1:
+		parseThis = True
+		retVal.append("SLN")
+	else:
+		if line2Parse.upper().find("CASCADE") != -1:
+			parseThis = True
+			retVal.append("SCL")
+
+
+	if parseThis == True:
+
+		#------------------------------------------
 		#get env name - it follows '='
+		#------------------------------------------
 
 		idx = line2Parse.find("=")
 		if idx == -1:
@@ -155,7 +168,6 @@ def parseLine(line2Parse):
 
 		idx = line2Parse.find(envName) + len(envName)
 
-
 		# ------------------------------------------
 		# parse out the logical name
 		# ------------------------------------------
@@ -167,7 +179,7 @@ def parseLine(line2Parse):
 		# ------------------------------------------
 		# assemble the list to return
 		# ------------------------------------------
-		retVal.clear()
+
 		retVal.append(envName)
 		retVal.extend(tableList)
 
@@ -185,7 +197,7 @@ def keepChars(thisChar):
 		return True
 
 # ------------------------------------------------------------
-# set the logical (send message via UDS)
+# end message via socket
 # ------------------------------------------------------------
 
 def setEnvironment(envList):
@@ -195,7 +207,7 @@ def setEnvironment(envList):
 	if len(envList)== 0:
 		return
 
-	message = "SLN," + ','.join(envList)
+	message = ','.join(envList)
 
 	print("message: " + message)
 	try:
@@ -224,7 +236,7 @@ def closeMessage():
 
 
 # ------------------------------------------------------------
-# get a uds socket to the logical server
+# get a socket to the logical server
 # ------------------------------------------------------------
 
 def connect2Server(serverName, portNumber):
