@@ -1,13 +1,32 @@
 #!/usr/local/bin python3
 
-# process logical name translations
 #
-# this is a proof of concept to see if the idea is feasible. Right now, there is a single dictionary of logical tables.
-# this could be expanded or even made hierarchical - trees make it more complex and I don't think they're required.
+# logicals.py
 #
-# python dictionaries are a great approximation of a logical table.
-# conveniently, entries in a dictionary can also be a dictionary (or list, or any object type)
-# logicals are basically name-value pairs (except when they are other tables, or lists of logicals)
+#                This module emulates the behavior of VMS logical names and tables
+#
+#                python dictionaries are a great approximation of a logical table.
+#                conveniently, entries in a dictionary can also be a dictionary (or list, or any object type)
+#                logicals are basically name-value pairs (except when they are other tables, or lists of logicals)
+#
+#
+# DATE        AUTHOR           MODIFICATION(S)
+# ----------- ---------------- ---------------------------------------------------
+# 13-JUN-2025 Tim Lovern       initial history remark. Added header block to routine
+#
+# 14-JUN-2025 Tim Lovern       added debugFlag for printing messages
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 #
 
 # --------------------------------------------------------------------------------
@@ -20,10 +39,14 @@ CASCADED_SEARCHES = {}	# holder of the names of named search lists to be searche
 			# the idea being for test to fall thru to dev, for example
 			# or train to fall thru to test and then to dev
 
+debugFlag = False
+
 # --------------------------------------------------------------------------------
 # add a logical to a table (table is created if it doesn't exist  - is this ok?)
 # --------------------------------------------------------------------------------
 def addLogical(table, logical, value):
+
+	global LOGICAL_TABLES
 
 	if LOGICAL_TABLES.get(table) == None:
 		LOGICAL_TABLES[table] = dict()
@@ -39,6 +62,8 @@ def addLogical(table, logical, value):
 # --------------------------------------------------------------------------------
 def getLogicals(table):
 
+	global LOGICAL_TABLES
+
 	if LOGICAL_TABLES.get(table) == None:
 		return None
 	else:
@@ -48,6 +73,8 @@ def getLogicals(table):
 # get all the tables in a searchList
 # --------------------------------------------------------------------------------
 def getSearchTables(listName):
+
+	global NAMED_SEARCHES
 
 	if listName == None or ListName == '':
 		return None
@@ -66,34 +93,49 @@ def getSearchTables(listName):
 # --------------------------------------------------------------------------------
 def getLogicalValueNamedSearch(logical, searchName):
 
+	global NAMED_SEARCHES
+	global LOGICAL_TABLES
+	global CASCADED_SEARCHES
+	global debugFlag
+
 	thisList    = None
 	thisLogical = None
 
-	print(f'logical: {logical} search name: {searchName}')
+	if debugFlag == True:
+		print(f'logical: {logical} search name: {searchName}')
 
 	if NAMED_SEARCHES.get(searchName):
 		thisList = NAMED_SEARCHES[searchName]
-		print(f'found named search {searchName}')
+
+		if debugFlag == True:
+			print(f'found named search {searchName}')
 
 	if thisList != None:
-		print(f'found list {thisList}')
+		if debugFlag == True:
+			print(f'found list {thisList}')
 		for table in thisList:
 			if LOGICAL_TABLES.get(table) != None:
 				thisLogical = getLogicalTable(table, logical)
 				if thisLogical != None:
 					return thisLogical
 
-	print('falling into cascaded search')
+	if debugFlag == True:
+		print('falling into cascaded search')
+
 	if CASCADED_SEARCHES.get(searchName) != None:
 		nameList = CASCADED_SEARCHES[searchName]
-		print(f'search list found for {searchName} - {nameList}')
+
+		if debugFlag == True:
+			print(f'search list found for {searchName} - {nameList}')
 
 		if nameList != None:
 			for namedSearch in nameList:
 				if NAMED_SEARCHES.get(namedSearch) == None:
 					continue
 
-				print(f'searching {namedSearch}')
+				if debugFlag == True:
+					print(f'searching {namedSearch}')
+
 				thisList = NAMED_SEARCHES[namedSearch]
 				for table in thisList:
 					if LOGICAL_TABLES.get(table) != None:
@@ -110,6 +152,8 @@ def getLogicalValueNamedSearch(logical, searchName):
 
 def getLogicalTable(table, logical):
 
+	global LOGICAL_TABLES
+
 	if LOGICAL_TABLES.get(table) != None:
 		thisTable = LOGICAL_TABLES[table]
 
@@ -125,7 +169,10 @@ def getLogicalTable(table, logical):
 def dumpValues(table):
 
 	if table == None:
-		print("\n\nNo logicals")
+
+		if debugFlag == True:
+			print("\n\nNo logicals")
+
 		return
 
 	for key, value in table.items():
@@ -135,6 +182,8 @@ def dumpValues(table):
 # CREATE A NAMED SEARCH
 # --------------------------------------------------------------------------------
 def setNamedSearchOrder(name, list):
+
+	global NAMED_SEARCHES
 
 	if NAMED_SEARCHES.get(name) != None:
 		del NAMED_SEARCHES[name]
@@ -146,6 +195,8 @@ def setNamedSearchOrder(name, list):
 # --------------------------------------------------------------------------------
 def setCascadeSearchOrder(name, list):
 
+	global CASCADED_SEARCHES
+
 	if CASCADED_SEARCHES.get(name) != None:
 		del CASCADED_SEARCHES[name]
 
@@ -156,6 +207,8 @@ def setCascadeSearchOrder(name, list):
 # --------------------------------------------------------------------------------
 def deleteLogicalTable(table):
 
+	global LOGICAL_TABLES
+
 	if LOGICAL_TABLES.get(table) != None:
 		del LOGICAL_TABLES[table]
 
@@ -163,6 +216,8 @@ def deleteLogicalTable(table):
 # delete logical from a table
 # --------------------------------------------------------------------------------
 def deleteLogical(table, logical):
+
+	global LOGICAL_TABLES
 
 	if LOGICAL_TABLES.get(table) != None:
 		thisTable = LOGICAL_TABLES[table]

@@ -62,6 +62,8 @@
 #		defined in dev$branch, followed by the tables in dev, and finally in base.
 #		the very first match is returned
 #
+#		dealing with LNM$PROCESS and LNM$SYSTEM is yet to be implemented
+#
 #
 # DATE        AUTHOR           MODIFICATION(S)
 # ----------- ---------------- ---------------------------------------------------
@@ -75,6 +77,8 @@
 #                              from race conditions across threads.
 #
 #                              cleaned up global references
+#
+# 13-JUN-2025 Tim Lovern       made logging based on global variable logConnections
 #
 #
 #
@@ -97,9 +101,11 @@ port           = 5050		# need a better port number
 closeSocket    = False
 disconnect     = False
 
-#processList    = list()		# used to track lnm$process_PID processes
-processLock     = threading.lock()	# lock for process level logicals
-tableLock       = threading.lock()	# lock for setting table values
+processList    = list()		# used to track lnm$process_PID processes
+processLock    = threading.Lock()	# lock for process level logicals
+tableLock      = threading.Lock()	# lock for setting table values
+
+logConnections = False
 
 # --------------------------------------------------------------------------------
 # define the server section - listen for connection and spawn threads
@@ -108,6 +114,7 @@ tableLock       = threading.lock()	# lock for setting table values
 def server():
 
 	global closeSocket
+	global logConnections
 
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	server_socket.bind((server_address, port))
@@ -120,7 +127,8 @@ def server():
 #	procThread = threading.thread(target=handleProcessDeaths)
 #	procThread.start()
 
-	print(f"Listening on {server_address}:{port}")
+	if logConnections == True:
+		print(f"Listening on {server_address}:{port}")
 
 	while closeSocket == False:
 		client_socket, address = server_socket.accept()
@@ -133,14 +141,19 @@ def server():
 # --------------------------------------------------------------------------------
 def handle_client(client_socket, address):
 
-	print(f"Accepted connection from {address}")
+	global logConnections
+
+	if logConnections == True:
+		print(f"Accepted connection from {address}")
 	while True:
 		try:
 			data = client_socket.recv(1024)
 			if not data:
 				break
 
-#			print(f"Received: {data.decode()} from {address}")
+			if logConnections == True:
+				print(f"Received: {data.decode()} from {address}")
+
 			processRequest(data.decode("utf-8"), client_socket, address)
 
 		except ConnectionResetError:
@@ -149,7 +162,9 @@ def handle_client(client_socket, address):
 			break
 
 	client_socket.close()
-#	print(f"Connection closed from {address}")
+
+	if logConnections == True:
+		print(f"Connection closed from {address}")
 
 
 
@@ -158,6 +173,10 @@ def handle_client(client_socket, address):
 # --------------------------------------------------------------------------------
 def processRequest(thisRequest, client_socket, address):
 
+	global logConnections
+	global closeSocket
+	global tableLock
+
 	tableName      = ""
 	searchName     = ""
 	logicalName    = ""
@@ -165,8 +184,6 @@ def processRequest(thisRequest, client_socket, address):
 
 	argList        = []
 	tmpList        = []
-
-	splitChar      = 0x01
 
 	argList.clear()
 
@@ -191,7 +208,8 @@ def processRequest(thisRequest, client_socket, address):
 			with tableLock:
 				logicals.addLogical(tableName, logicalName, logicalValue)
 
-			print("Table: "+ tableName + " logical: "+ logicalName + " value: " + logicalValue)
+			if logConnections == True:
+				print("Table: "+ tableName + " logical: "+ logicalName + " value: " + logicalValue)
 
 		# ---------------------------------------------
 		# delete a logical
@@ -211,7 +229,8 @@ def processRequest(thisRequest, client_socket, address):
 		# ---------------------------------------------
 		case "GET":
 
-			print("get requested")
+			if logConnections == True:
+				print("get requested")
 
 			logicalName = argList[1]
 			tableName = argList[2]
@@ -231,7 +250,8 @@ def processRequest(thisRequest, client_socket, address):
 		# ---------------------------------------------
 		case "GTN":
 
-			print("get named search requested")
+			if logConnections == True:
+				print("get named search requested")
 
 			logicalName = argList[1]
 			searchName   = argList[2]
@@ -261,7 +281,8 @@ def processRequest(thisRequest, client_socket, address):
 			for item in argList[2:]:
 				tmpList.append(item)
 
-			print(f"SCL: {searchName} = {tmpList}")
+			if logConnections == True:
+				print(f"SCL: {searchName} = {tmpList}")
 
 			with tableLock:
 				logicals.setCascadeSearchOrder(searchName, tmpList)
@@ -278,7 +299,8 @@ def processRequest(thisRequest, client_socket, address):
 			for item in argList[2:]:
 				tmpList.append(item)
 
-			print(f"SLN: {searchName} = {tmpList}")
+			if logConnections == True:
+				print(f"SLN: {searchName} = {tmpList}")
 
 			with tableLock:
 				logicals.setNamedSearchOrder(searchName, tmpList)
@@ -288,9 +310,10 @@ def processRequest(thisRequest, client_socket, address):
 		# [CMD]
 		# ---------------------------------------------
 		case "SHUTDOWN":
-			global closeSocket
 
-			print("shutdown requested...")
+			if logConnections == True:
+				print("shutdown requested...")
+
 			with tableLock:
 				closeSocket = True
 
@@ -298,7 +321,8 @@ def processRequest(thisRequest, client_socket, address):
 		# close connection (deprecated)
 		# ---------------------------------------------
 		case "CLOSE":
-			print("Close connection requested...")
+			if logConnections == True:
+				print("Close connection requested...")
 
 		# ---------------------------------------------
 		# default - we have no idea...
@@ -311,9 +335,16 @@ def processRequest(thisRequest, client_socket, address):
 
 # --------------------------------------------------------------------------------
 # thread for watching for processes with local logical definitions going away
+# we have to garbage collect local definitions at the process (pid)level.
+# otherwise we could have orphaned tables, pr worse get a pid recyled and
+# have phantom overrides pop up.
 # --------------------------------------------------------------------------------
 def handleProcessDeaths(pid):
-#	global closeSocket
+
+	global closeSocket
+	global logConnections
+	global processLock
+
 #	howLong      = 60 * 5		# five minutes between pid checks
 #	expiredList  = list()
 #
@@ -340,16 +371,20 @@ def handleProcessDeaths(pid):
 # check for processes with tables to see if they still exist
 #	should be in own thread and sleep between calls.
 # --------------------------------------------------------------------------------
-def checkProcessTables()
-#	global processList
-#	deadList = list()
-#	deadList.clear()
-#
-#	with processLock:
-#		for proc in processList:
-#			if psutil.pid_exists(proc) == False:
-#				deadList.append(proc)
-#	return deadList
+def checkProcessTables():
+
+	global logConnections
+	global processLock
+	global processList
+
+	deadList = list()
+	deadList.clear()
+
+	with processLock:
+		for proc in processList:
+			if psutil.pid_exists(proc) == False:
+				deadList.append(proc)
+	return deadList
 
 # --------------------------------------------------------------------------------
 # main routine

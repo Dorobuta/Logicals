@@ -40,10 +40,11 @@ the order that they will be searched for the named logical. The first match is r
 
 search list should always look for a table called LNM$PROCESS_<pid>, this should be the first entry in the list.
 The last entry in the list should always be LNM$SYSTEM. This is not implemented at this time.
+Search lists are always named. In the event of no named search lists being in effect for a process, then the process and system tables should be in a default list.
 
 LNM$PROCESS should have a limited lifespan and go away when the process exits. a possible solution would be a garbage collectioon thread in the server that walks through 
 the LNM$PROCESS tables and checks to see if the process is still alive. Any processes not found would result in the table being deleted. The issue of re-using PIDs by the underlying
-OS is a concern
+OS is a concern (the code is partially written, but commented out)
 
 Limitations of this approach:
 
@@ -55,9 +56,9 @@ Limitations of this approach:
 
 3. (Completed - UDP was replaced) UDP vs TCP/IP sockets - UDP is connectionless and has no guaranteed delivery. It probably would be worth the effort of using TCP/IP sockets for production.
 
-4. Search lists. This is currently very under developed and needs addressing. I would think that these could be pre-defined into environments, with a process level environment logical
+4. Search lists. This is currently under developed and needs addressing. I would think that these could be pre-defined into environments, with a process level environment logical
    indicating which search list to use. something like USER$ENV with a value of: DEV_00423, defined in table: LNM$PROCESS_000123, for the process with PID 123. This should reasult in
-   the search list dev_00423$search being mapped into the LNM$PROCESS_000123 logical USER$SEARCH_LIST
+   the search list dev_00423$search being mapped into the LNM$PROCESS_000123 logical USER$SEARCH_LIST (search lists are functional, need to incorporate SYSTEM tables and process level logicals)
 
 5. (Completed - server fires a thread for each request) The server is currently single threaded.
 
